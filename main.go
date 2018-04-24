@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	// kafkaのアドレス
 	bootstrapServers = flag.String("bootstrapServers", "localhost:9092", "kafka address")
 )
 
