@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -38,23 +39,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	//*** 終了受付 ***//
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
-
-	done := make(chan struct{})
-
-	go func() {
-	SIGNAL_FOR:
-		for {
-			select {
-			case <-signals:
-				close(done)
-				break SIGNAL_FOR
-			}
-		}
-	}()
-	//*** 終了受付 ***//
 
 	brokers := strings.Split(*bootstrapServers, ",")
 	config := sarama.NewConfig()
@@ -119,7 +108,7 @@ func main() {
 				fmt.Println(fmt.Sprintf("success send. message: %s, timestamp: %d", send.Message, send.Timestamp))
 			case err := <-producer.Errors():
 				fmt.Println(fmt.Sprintf("fail send. reason: %v", err.Msg))
-			case <-signals:
+			case <-ctx.Done():
 				break PRODUCER_FOR
 			}
 		}
@@ -136,7 +125,7 @@ func main() {
 					fmt.Println(err)
 				}
 				fmt.Println(fmt.Sprintf("consumed message. message: %s, timestamp: %d", consumed.Message, consumed.Timestamp))
-			case <-signals:
+			case <-ctx.Done():
 				break CONSUMER_FOR
 			}
 		}
@@ -144,7 +133,7 @@ func main() {
 
 	fmt.Println("go-kafka-example start.")
 
-	<-done
+	<-signals
 
 	fmt.Println("go-kafka-example stop.")
 }
